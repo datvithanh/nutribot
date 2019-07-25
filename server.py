@@ -1,12 +1,21 @@
 from flask import Flask, request
 from pymessenger import Bot
 import random
+import ibm_watson
+
 
 app = Flask(__name__, static_folder='static')
 
 app.config.from_pyfile('configs/constants.py')
 
 bot = Bot(app.config['FACEBOOK_ACCESS_TOKEN'])
+
+assistant = ibm_watson.AssistantV1(
+    version='2019-02-28',
+    iam_apikey=app.config['ASSISTANT_API_KEY'],
+    url=app.config['ASSISTANT_URL']
+)
+
 
 @app.route("/", methods=['GET', 'POST'])
 def receive_message():
@@ -27,7 +36,17 @@ def receive_message():
                 recipient_id = message['sender']['id']
                 if message['message'].get('text'):
                     print(message['message'].get('text'))
+
+                    response = assistant.message(
+                        workspace_id=app.config['ASSISTANT_WORKSPACE_ID'],
+                        input={
+                            'text': message['message'].get('text')
+                        }
+                    ).get_result()
                     
+                    print(response['intents'])
+                    print(response['entities'])
+
                     response_sent_text = get_message()
                     send_message(recipient_id, response_sent_text)
                 #if user sends us a GIF, photo,video, or any other non-text item
