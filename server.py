@@ -2,7 +2,7 @@ from flask import Flask, request
 from pymessenger import Bot
 import random
 import ibm_watson
-
+from utils import entity_to_nutri, get_nparr
 
 app = Flask(__name__, static_folder='static')
 
@@ -16,6 +16,8 @@ assistant = ibm_watson.AssistantV1(
     url=app.config['ASSISTANT_URL']
 )
 
+nparr = get_nparr()
+nparr = [tmp[0] for tmp in nparr]
 
 @app.route("/", methods=['GET', 'POST'])
 def receive_message():
@@ -43,11 +45,15 @@ def receive_message():
                             'text': message['message'].get('text')
                         }
                     ).get_result()
-                    
-                    print(response['intents'])
-                    print(response['entities'])
 
-                    response_sent_text = get_message()
+                    # response_sent_text = get_message()
+
+                    entities = [tmp['entity'] for tmp in response['entities'] if tmp['entity'] in nparr]
+
+                    if len(entities) > 0:
+                        response_sent_text = entity_to_nutri(entities[0])
+                    else:
+                        response_sent_text = 'Xin lỗi, tôi không hiểu yêu cầu của bạn'
                     send_message(recipient_id, response_sent_text)
                 #if user sends us a GIF, photo,video, or any other non-text item
                 if message['message'].get('attachments'):
@@ -65,7 +71,7 @@ def verify_fb_token(token_sent):
 
 #chooses a random message to send to the user
 def get_message():
-    sample_responses = ["You are stunning!", "We're proud of you.", "Keep on being you!", "We're greatful to know you :)"]
+    sample_responses = ["message received"]
     # return selected item to the user
     return random.choice(sample_responses)
 
@@ -77,4 +83,5 @@ def send_message(recipient_id, response):
 
 if __name__ == '__main__':
     app.run(host=app.config['HOST'],
-            port=app.config['PORT'])
+            port=app.config['PORT'],
+            debug=True)
